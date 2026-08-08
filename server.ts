@@ -414,9 +414,10 @@ function configureApp (app: ReturnType<typeof express>, seq: typeof sequelize) {
         res.status(400).send(res.__('Invalid email/password cannot be empty'))
       }
     }
+    /* Self-registration must never assign an elevated role (Mass Assignment / A01 Broken Access Control) */
+    req.body.role = security.roles.customer
     next()
   })
-  app.post('/api/Users', verify.registerAdminChallenge())
   app.post('/api/Users', verify.passwordRepeatChallenge()) // vuln-code-snippet hide-end
   app.post('/api/Users', verify.emptyUserRegistration())
   /* Unauthorized users are not allowed to access B2B API */

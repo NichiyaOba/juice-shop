@@ -204,8 +204,6 @@ void describe('Hidden URL', () => {
   void it('GET access log file no longer discloses server access logs', async () => {
     const res = await request(app)
       .get('/support/logs/access.log.' + utils.toISO8601(new Date()))
-    assert.equal(res.status, 200)
-    assert.ok(!res.headers['content-type']?.includes('application/octet-stream'))
-    assert.ok(res.headers['content-type']?.includes('text/html'))
+    assert.equal(res.status, 403)
   })
 })

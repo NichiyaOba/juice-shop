@@ -276,6 +276,12 @@ function configureApp (app: ReturnType<typeof express>, seq: typeof sequelize) {
   app.use('/encryptionkeys', serveIndexMiddleware, serveIndex('encryptionkeys', { icons: true, view: 'details' }))
   app.use('/encryptionkeys/:file', serveKeyFiles())
 
+  /* Access logs are never served externally — deny explicitly instead of falling through to the SPA */
+  app.use('/support/logs', (req: Request, res: Response, next: NextFunction) => {
+    res.status(403)
+    next(new Error('Access logs are not accessible from outside the server.'))
+  })
+
   /* Swagger documentation for B2B v2 endpoints */
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument))
 

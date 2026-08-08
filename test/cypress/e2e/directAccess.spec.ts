@@ -82,8 +82,8 @@ describe('/', () => {
   describe('challenge "accessLogDisclosure"', () => {
     it('should not be able to access the access log file anymore', () => {
       cy.task<Date>('toISO8601').then((date: Date) => {
-        cy.request(`/support/logs/access.log.${date.toString()}`).then((res) => {
-          expect(res.headers['content-type']).to.include('text/html')
+        cy.request({ url: `/support/logs/access.log.${date.toString()}`, failOnStatusCode: false }).then((res) => {
+          expect(res.status).to.equal(403)
         })
       })
     })

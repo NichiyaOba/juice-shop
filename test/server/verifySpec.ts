@@ -92,13 +92,16 @@ describe('verify', () => {
       expect(challenges.scoreBoardChallenge.solved).to.equal(true)
     })
 
-    it('"adminSectionChallenge" is solved when the 19px.png transpixel is requested', () => {
+    // Regression test: the administration section is now protected server-side by
+    // security.isAdmin() (see server.ts), so requesting the transpixel must never
+    // solve the "Admin Section" challenge.
+    it('"adminSectionChallenge" is not solved when the 19px.png transpixel is requested', () => {
       challenges.adminSectionChallenge = { solved: false, save } as unknown as Challenge
       req.url = 'http://juice-sh.op/public/images/padding/19px.png'
 
       verify.accessControlChallenges()(req, res, next)
 
-      expect(challenges.adminSectionChallenge.solved).to.equal(true)
+      expect(challenges.adminSectionChallenge.solved).to.equal(false)
     })
 
     it('"tokenSaleChallenge" is solved when the 56px.png transpixel is requested', () => {

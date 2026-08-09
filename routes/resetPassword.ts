@@ -62,7 +62,14 @@ export function resetPassword () {
          response, which is what stops someone who merely knows the answer. */
       if (!token) {
         const issuedToken = issueResetToken(email)
-        logger.info(`Password reset token for ${email}: ${issuedToken}`)
+        /* Stands in for the mail transport this application does not have. A live
+           credential must never reach the logs of a real deployment (CWE-532), so
+           printing it is opt-in and the default only records that a token was issued. */
+        if (process.env.PASSWORD_RESET_TOKEN_TO_LOG === 'true') {
+          logger.warn(`Password reset token for ${email}: ${issuedToken} (PASSWORD_RESET_TOKEN_TO_LOG is enabled - never do this outside local development)`)
+        } else {
+          logger.info(`Password reset token issued for ${email}`)
+        }
         res.status(202).json({ status: res.__('A one-time password reset link has been sent to the registered email address.') })
         return
       }

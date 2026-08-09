@@ -78,10 +78,12 @@ describe('/#/complain', () => {
       })
     })
 
-    it('should be solved either through Windows- or Linux-specific attack path', () => {
+    it('should not disclose any host file through either attack path anymore', () => {
       cy.task('isDocker').then((isDocker) => {
         if (!isDocker) {
-          cy.expectChallengeSolved({ challenge: 'XXE Data Access' })
+          cy.request('/api/Challenges/?key=xxeFileDisclosureChallenge').then((res) => {
+            expect(res.body.data[0].solved).to.equal(false)
+          })
         }
       })
     })

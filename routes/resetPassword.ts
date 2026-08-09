@@ -11,12 +11,15 @@ import { SecurityAnswerModel } from '../models/securityAnswer'
 import * as challengeUtils from '../lib/challengeUtils'
 import { challenges, users } from '../data/datacache'
 import { answerMatches, clearFailedAttempts, isLockedOut, recordFailedAttempt } from '../lib/passwordResetGuard'
+import { issueResetToken, redeemResetToken } from '../lib/passwordResetToken'
+import logger from '../lib/logger'
 import { UserModel } from '../models/user'
 
 export function resetPassword () {
   return async ({ body, connection }: Request, res: Response, next: NextFunction) => {
     const email = body.email
     const answer = body.answer
+    const token = body.token
     const newPassword = body.new
     const repeatPassword = body.repeat
     if (!email || !answer) {
@@ -45,19 +48,34 @@ export function resetPassword () {
           where: { email }
         }]
       })
-      if ((data != null) && answerMatches(answer, data.answer)) {
-        const user = await UserModel.findByPk(data.UserId)
-        if (user) {
-          clearFailedAttempts(email)
-          const updatedUser = await user.update({ password: newPassword })
-          verifySecurityAnswerChallenges(updatedUser, answer)
-          res.json({ user: updatedUser })
-        }
-      } else {
+      if ((data == null) || !answerMatches(answer, data.answer)) {
         /* Unknown addresses are counted too, so that the lockout behaviour
            cannot be used to tell existing accounts from non-existing ones. */
         recordFailedAttempt(email)
         res.status(401).send(res.__('Wrong answer to security question.'))
+        return
+      }
+      clearFailedAttempts(email)
+      /* Step 1. A security question is researchable, so answering one only
+         requests a reset - it never performs one. The one-time token goes out of
+         band to the registered address and deliberately never appears in this
+         response, which is what stops someone who merely knows the answer. */
+      if (!token) {
+        const issuedToken = issueResetToken(email)
+        logger.info(`Password reset token for ${email}: ${issuedToken}`)
+        res.status(202).json({ status: res.__('A one-time password reset link has been sent to the registered email address.') })
+        return
+      }
+      /* Step 2. Both factors are required here: the answer above and the token. */
+      if (!redeemResetToken(email, token)) {
+        res.status(401).send(res.__('Invalid or expired password reset token.'))
+        return
+      }
+      const user = await UserModel.findByPk(data.UserId)
+      if (user) {
+        const updatedUser = await user.update({ password: newPassword })
+        verifySecurityAnswerChallenges(updatedUser, answer)
+        res.json({ user: updatedUser })
       }
     } catch (error) {
       next(error)

@@ -104,7 +104,7 @@ void describe('/rest/user/change-password', () => {
 })
 
 void describe('/rest/user/reset-password', () => {
-  void it('POST password reset for Jim with correct answer to his security question', async () => {
+  void it('POST password reset for Jim with correct answer to his security question only requests a reset', async () => {
     const res = await request(app)
       .post('/rest/user/reset-password')
       .set({ 'content-type': 'application/json' })
@@ -115,7 +115,39 @@ void describe('/rest/user/reset-password', () => {
         repeat: 'ncc-1701'
       })
 
-    assert.equal(res.status, 200)
+    assert.equal(res.status, 202)
+    assert.equal(res.body.user, undefined)
+    assert.equal(res.body.token, undefined)
+  })
+
+  void it('POST password reset without the one-time token does not change the password', async () => {
+    const email = 'jim@' + config.get<string>('application.domain')
+    await request(app)
+      .post('/rest/user/reset-password')
+      .set({ 'content-type': 'application/json' })
+      .send({ email, answer: 'Samuel', new: 'attacker-chosen', repeat: 'attacker-chosen' })
+
+    const res = await request(app)
+      .post('/rest/user/login')
+      .send({ email, password: 'attacker-chosen' })
+
+    assert.equal(res.status, 401)
+  })
+
+  void it('POST password reset with a bogus one-time token gets rejected', async () => {
+    const res = await request(app)
+      .post('/rest/user/reset-password')
+      .set({ 'content-type': 'application/json' })
+      .send({
+        email: 'jim@' + config.get<string>('application.domain'),
+        answer: 'Samuel',
+        token: 'a'.repeat(64),
+        new: 'ncc-1701',
+        repeat: 'ncc-1701'
+      })
+
+    assert.equal(res.status, 401)
+    assert.ok(res.text.includes('Invalid or expired password reset token.'))
   })
 
   void it('POST password reset for Bender with correct answer to his security question', async () => {
@@ -129,7 +161,8 @@ void describe('/rest/user/reset-password', () => {
         repeat: 'OhG0dPlease1nsertLiquor!'
       })
 
-    assert.equal(res.status, 200)
+    assert.equal(res.status, 202)
+    assert.equal(res.body.user, undefined)
   })
 
   void it('POST password reset for Bjoern\u00b4s internal account with correct answer to his security question', async () => {
@@ -143,7 +176,8 @@ void describe('/rest/user/reset-password', () => {
         repeat: 'monkey summer birthday are all bad passwords but work just fine in a long passphrase'
       })
 
-    assert.equal(res.status, 200)
+    assert.equal(res.status, 202)
+    assert.equal(res.body.user, undefined)
   })
 
   void it('POST password reset for Bjoern\u00b4s OWASP account with correct answer to his security question', async () => {
@@ -157,7 +191,8 @@ void describe('/rest/user/reset-password', () => {
         repeat: 'kitten lesser pooch karate buffoon indoors'
       })
 
-    assert.equal(res.status, 200)
+    assert.equal(res.status, 202)
+    assert.equal(res.body.user, undefined)
   })
 
   void it('POST password reset for Morty with correct answer to his security question', async () => {
@@ -171,7 +206,8 @@ void describe('/rest/user/reset-password', () => {
         repeat: 'iBurri3dMySe1fInTheB4ckyard!'
       })
 
-    assert.equal(res.status, 200)
+    assert.equal(res.status, 202)
+    assert.equal(res.body.user, undefined)
   })
 
   void it('POST password reset with wrong answer to security question', async () => {
@@ -311,6 +347,6 @@ void describe('/rest/user/reset-password brute force protection', () => {
     }
 
     assert.equal((await resetWith(lockedEmail, SECURITY_ANSWER)).status, 429)
-    assert.equal((await resetWith(untouchedEmail, SECURITY_ANSWER)).status, 200)
+    assert.equal((await resetWith(untouchedEmail, SECURITY_ANSWER)).status, 202)
   })
 })
